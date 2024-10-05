@@ -165,6 +165,8 @@ resource "aws_instance" "public_instance_1" {
   key_name        = aws_key_pair.main_key.key_name
   vpc_security_group_ids = [aws_security_group.public_sg.id]
   associate_public_ip_address = true
+  user_data       = file("command.sh")
+  
   tags = {
     Name = "PublicInstance1"
   }
@@ -178,6 +180,7 @@ resource "aws_instance" "public_instance_2" {
   key_name        = aws_key_pair.main_key.key_name
   vpc_security_group_ids = [aws_security_group.public_sg.id]
   associate_public_ip_address = true
+  user_data       = file("command.sh")
 
   tags = {
     Name = "PublicInstance2"
