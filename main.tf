@@ -123,7 +123,7 @@ output "private_subnets" {
 
 # Crear un par de llaves para acceder a las instancias EC2
 resource "aws_key_pair" "main_key" {
-  key_name   = "cloud2"
+  key_name   = "hrkey"
   public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDOZ/0NE10bnNWL+W8Jb5aJDlIM85uNQlxaQP4yqTc4477DWUnpQaPq9HhYXiZZXFUXyHonQtExcleqkD64Kzzy4lDoroRbV2pTdXCodSt5KC5NRnOaevu6CzEH0/WpNNX3VBy3OCEVDzqjkbrIqF1KwveLyq6fHp0sUFD675HJQaoNoH5fud/8v5GbFcCytHuWSWEjG/pcYo7/ArjLs7tLyeRi8V68HZ7zvVS3Hk6k9rkBRGdTMAClcwlwraOcBJ8pJwQTizez8e0GgApcbCJOp1eOChmgQMfGBsraguTTHAHz4URAixzQH4nJl3+lKUFh0KQlEKuGrsEI71jzH08SpXVB7N5N7fcvuhP9v9q8freff10nXRcG+tM+WYMZSV/18BEpj+bd6tQu/qKcFTxBSaI2I4jqD9N49b7dL+xMcqX2aPRUyc757zZ93qzn+cfZZWamLrQeeojLbnVESQ5LTfPAVJ3853Rxn//PD/V3tbCf0zauHhwqjNrok2FU+OnGaY5hUnRaeKpXfg3TImNiqc1M3MTZbYnY6//I8eBRon8tlLvr+sssEfpu1KTYVx4pLCsOQeFbBuT+eZf9TyLe15X3Era+zznonTWSGRSaYzkW+IPyUAwnSkPZXOU8aOtVR9jmsY/VKht1XHm9JcH9LzXKOQH8ncWregXG5vjYqQ== helderguerra18@gmail.com" # Tu clave pública SSH
 }
 
