@@ -290,3 +290,183 @@ resource "aws_db_instance" "my_database" {
     Name = "MyRDSInstance"
   }
 }
+
+# Crear una tabla de DynamoDB
+resource "aws_dynamodb_table" "http_crud_tutorial_items" {
+  name         = "http-crud-tutorial-items-tf"
+  billing_mode = "PAY_PER_REQUEST"  # Modo de facturación a demanda
+
+  hash_key     = "id"  # Clave de partición
+
+  attribute {
+    name = "id"
+    type = "S"  # Tipo de atributo (S = String)
+  }
+
+  tags = {
+    Name = "HTTPCrudTutorialItems-tf"
+  }
+}
+
+# Salida opcional para ver el nombre de la tabla creada
+output "dynamodb_table_name" {
+  value = aws_dynamodb_table.http_crud_tutorial_items.name
+}
+
+# Crear un único rol de IAM para la función Lambda
+resource "aws_iam_role" "lambda_role-tf" {
+  name = "lambda-role-tf"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = "sts:AssumeRole",
+        Effect = "Allow",
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "LambdaRole-tf"
+  }
+}
+
+# Política de permisos para DynamoDB y CloudWatch Logs
+resource "aws_iam_policy" "lambda_dynamodb_policy-tf" {
+  name = "lambda-dynamodb-policy-tf"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:Scan"
+        ],
+        Effect   = "Allow",
+        Resource = aws_dynamodb_table.http_crud_tutorial_items.arn
+      },
+      {
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        Effect   = "Allow",
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = {
+    Name = "LambdaDynamoDBPolicy-tf"
+  }
+}
+
+# Adjuntar la política y los permisos de ejecución básica al rol
+resource "aws_iam_role_policy_attachment" "lambda_dynamodb_policy_attachment-tf" {
+  role       = aws_iam_role.lambda_role-tf.name
+  policy_arn = aws_iam_policy.lambda_dynamodb_policy-tf.arn
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_basic_execution-tf" {
+  role       = aws_iam_role.lambda_role-tf.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+resource "aws_lambda_function" "http_crud_lambda-tf" {
+  function_name = "http-crud-lambda-tf"
+  role          = aws_iam_role.lambda_role-tf.arn  
+  handler       = "index.handler"
+  runtime       = "nodejs20.x"
+  filename      = "lambda_function.zip"  # Asegúrate de que este archivo esté cargado
+  
+  source_code_hash = filebase64sha256("lambda_function.zip")
+
+  environment {
+    variables = {
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.http_crud_tutorial_items.name
+    }
+  }
+
+  tags = {
+    Name = "HTTPCrudLambdaFunction-tf"
+  }
+}
+
+output "dynamodb_table_arn" {
+  value = aws_dynamodb_table.http_crud_tutorial_items.arn
+}
+
+# Output opcional de la función Lambda ARN
+output "lambda_function_arn" {
+  value = aws_lambda_function.http_crud_lambda-tf.arn
+}
+
+# Crear API HTTP en API Gateway
+resource "aws_apigatewayv2_api" "http_crud_api-tf" {
+  name          = "http-crud-tutorial-api-tf"
+  protocol_type = "HTTP"
+}
+
+# Crear la integración de API Gateway con la función Lambda
+resource "aws_apigatewayv2_integration" "lambda_integration-tf" {
+  api_id             = aws_apigatewayv2_api.http_crud_api-tf.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.http_crud_lambda-tf.invoke_arn
+  payload_format_version = "2.0"
+}
+
+# Crear ruta para GET /items/{id}
+resource "aws_apigatewayv2_route" "get_item_route-tf" {
+  api_id    = aws_apigatewayv2_api.http_crud_api-tf.id
+  route_key = "GET /items/{id}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration-tf.id}"
+}
+
+# Crear ruta para PUT /items
+resource "aws_apigatewayv2_route" "put_item_route-tf" {
+  api_id    = aws_apigatewayv2_api.http_crud_api-tf.id
+  route_key = "PUT /items"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration-tf.id}"
+}
+
+# Crear ruta para DELETE /items/{id}
+resource "aws_apigatewayv2_route" "delete_item_route-tf" {
+  api_id    = aws_apigatewayv2_api.http_crud_api-tf.id
+  route_key = "DELETE /items/{id}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration-tf.id}"
+}
+
+# Crear ruta para GET /items
+resource "aws_apigatewayv2_route" "get_items_route-tf" {
+  api_id    = aws_apigatewayv2_api.http_crud_api-tf.id
+  route_key = "GET /items"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration-tf.id}"
+}
+
+
+# Crear un deployment de API
+resource "aws_apigatewayv2_stage" "default_stage-tf" {
+  api_id = aws_apigatewayv2_api.http_crud_api-tf.id
+  name   = "$default"
+  auto_deploy = true
+}
+
+# Permisos para que API Gateway invoque la Lambda
+resource "aws_lambda_permission" "apigw-lambda-tf" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.http_crud_lambda-tf.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.http_crud_api-tf.execution_arn}/*"
+}
+
+
+
